@@ -1,0 +1,66 @@
+#the packages we need
+install.packages("Hmisc")
+library(Hmisc)
+install.packages("dplyr")
+install.packages("stringr")
+library(dplyr)
+library(stringr)
+library(data.table)
+
+
+#extract the label variable and give them to the column variable
+get_labels <- label(election)
+names(election) <- get_labels
+
+#transform the data
+election <- t(election)
+
+#split the row names, extract the first 3 columns, and combine them with election
+split_doc <- data.table(str_split(row.names(election), " ",simplify = T))
+split_doc <- split_doc[,c(1:3)]
+names(split_doc) <- c("YEAR","TYPE","PARTY")
+election <- cbind(election,split_doc)
+
+#change the data type of the column for the followting condtion search. 
+election$YEAR <- as.numeric(unlist(election[,"YEAR"]))
+election$PARTY <- as.character(unlist(election[,"PARTY"]))
+
+#choose the data we want to pick
+data_2436 <- election[YEAR >= 1924 & YEAR <= 1936]
+data_2436 <- data_2436[PARTY == "DEM" | PARTY == "REP" | PARTY == "T/O"]
+data_2436 <- rbind(election[c(1:3),],data_2436)
+
+#separate the data by years
+data24pres <- rbind(election[c(1:3),],data_2436[YEAR == 1924 & TYPE == "PRES"])
+data24pres <- data.table(t(data24pres),YEAR = rep(1924),LEVEL = rep(1))
+
+data24cong <- rbind(election[c(1:3),],data_2436[YEAR == 1924 & TYPE == "CONG"])
+data24cong <- data.table(t(data24cong),YEAR = rep(1924),LEVEL = rep(2))
+
+data26cong <- rbind(election[c(1:3),],data_2436[YEAR == 1926 & TYPE == "CONG"])
+data26cong <- data.table(t(data26cong),YEAR = rep(1926),LEVEL = rep(2))
+
+data30cong <- rbind(election[c(1:3),],data_2436[YEAR == 1930 & TYPE == "CONG"])
+data30cong <- data.table(t(data30cong),YEAR = rep(1930),LEVEL = rep(2))
+
+data34cong <- rbind(election[c(1:3),],data_2436[YEAR == 1934 & TYPE == "CONG"])
+data34cong <- data.table(t(data34cong),YEAR = rep(1934),LEVEL = rep(2))
+
+data36pres <- rbind(election[c(1:3),],data_2436[YEAR == 1936 & TYPE == "PRES"])
+data36pres <- data.table(t(data36pres),YEAR = rep(1936),LEVEL = rep(1))
+
+data36cong <- rbind(election[c(1:3),],data_2436[YEAR == 1936 & TYPE == "CONG"])
+data36cong <- data.table(t(data36cong),YEAR = rep(1936),LEVEL = rep(2))
+
+#combine data in each year and rename
+data2436 <- rbind(data24pres,data24cong,data26cong,data30cong,data34cong,data36pres,data36cong,use.names = FALSE)
+names(data2436) <- c("STATE","COUNTY NAME","COUNTY","DEM","REP","TO","YEAR","LEVEL")
+
+#save as csv
+write.csv(finaldata2436, file = "finaldata2436.csv")
+
+#merge with transfer document
+data2436$STATE <- as.numeric(unlist(data2436[,"STATE"]))
+data2436$COUNTY <- as.numeric(unlist(data2436[,"COUNTY"]))
+data2436 <- merge(data2436,transfer,by = c("STATE","COUNTY"),all.x = TRUE)
+data2436 <- data2436[,c("FIPS","NAME","YEAR","LEVEL","DEM","REP","TO")]
